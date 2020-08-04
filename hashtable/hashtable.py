@@ -21,7 +21,7 @@ class HashTable:
 
     def __init__(self, capacity):
         self.capacity = capacity
-        self.table = [None] * MIN_CAPACITY
+        self.table = [None] * capacity
         self.counter = 0
 
     def get_num_slots(self):
@@ -141,7 +141,7 @@ class HashTable:
         key_value = self.table[index]
 
         if key_value is not None:
-            return key_value
+            return key_value.value
 
         return None
 
