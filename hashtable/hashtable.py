@@ -16,53 +16,88 @@ class HashTable:
     """
     A hash table that with `capacity` buckets
     that accepts string keys
-
     Implement this.
     """
 
     def __init__(self, capacity):
-        # Your code here
-
+        self.capacity = capacity
+        self.table = [None] * MIN_CAPACITY
+        self.counter = 0
 
     def get_num_slots(self):
         """
         Return the length of the list you're using to hold the hash
         table data. (Not the number of items stored in the hash table,
         but the number of slots in the main list.)
-
         One of the tests relies on this.
-
         Implement this.
         """
-        # Your code here
+        return self.capacity
 
 
     def get_load_factor(self):
         """
         Return the load factor for this hash table.
-
-        Implement this.
+        (number of keys / capacity)
         """
-        # Your code here
+        return self.counter / self.capacity
 
 
     def fnv1(self, key):
         """
         FNV-1 Hash, 64-bit
-
+        https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
         Implement this, and/or DJB2.
         """
 
-        # Your code here
+        # total = 0
+        # for b in key.encode():
+        #     total += b
+        #     total &= 0xffffffffffffffff #64 bit
 
+        # return total
+
+        hash = 0xcbf29ce484222325 # decimal: 14695981039346656037
+        fnv_64_prime = 0x00000100000001B3 # decimal: 1099511628211
+        uint64_max = 2 ** 64
+
+        for x in key:
+            hash = hash ^ ord(x)
+            hash = (hash * fnv_64_prime) % uint64_max
+
+        return hash
 
     def djb2(self, key):
         """
         DJB2 hash, 32-bit
-
         Implement this, and/or FNV-1.
         """
-        # Your code here
+
+        # total = 0
+        # for b in key.encode():
+        #     total += b
+        #     total &= 0xffffffff  #32 bit
+
+        # return total
+
+        # hash = 5381
+        # for x in key:
+        #     hash = (( hash << 5) + hash) + ord(x)
+        # return hash & 0xffffffff
+
+        # hash = 5381
+        # for x in key:
+        #     hash = (hash * 33) + ord(x)
+        # return hash
+
+        str_key = str(key).encode()
+        # Start from an arbitrary large prime
+        hash_value = 5381
+        # Bit-shift and sum value for each character
+        for b in str_key:
+            hash_value = ((hash_value << 5) + hash_value) + b
+            hash_value &= 0xffffffff  # DJB2 is a 32-bit hash, only keep 32 bits
+        return hash_value
 
 
     def hash_index(self, key):
@@ -70,50 +105,55 @@ class HashTable:
         Take an arbitrary key and return a valid integer index
         between within the storage capacity of the hash table.
         """
-        #return self.fnv1(key) % self.capacity
+        # return self.fnv1(key) % self.capacity
         return self.djb2(key) % self.capacity
 
     def put(self, key, value):
         """
         Store the value with the given key.
-
         Hash collisions should be handled with Linked List Chaining.
-
         Implement this.
         """
-        # Your code here
-
+        index = self.hash_index(key)
+        self.table[index] = HashTableEntry(key, value)
 
     def delete(self, key):
         """
         Remove the value stored with the given key.
-
         Print a warning if the key is not found.
-
         Implement this.
         """
-        # Your code here
+        index = self.hash_index(key)
 
+        if self.table[index] == None:
+            print("Error: Key not found")
+
+        else:
+            self.table[index] = None
 
     def get(self, key):
         """
         Retrieve the value stored with the given key.
-
         Returns None if the key is not found.
-
         Implement this.
         """
-        # Your code here
+        index = self.hash_index(key)
+        key_value = self.table[index]
+
+        if key_value is not None:
+            return key_value
+
+        return None
 
 
     def resize(self, new_capacity):
         """
         Changes the capacity of the hash table and
         rehashes all key/value pairs.
-
         Implement this.
         """
         # Your code here
+        pass
 
 
 
@@ -151,3 +191,15 @@ if __name__ == "__main__":
         print(ht.get(f"line_{i}"))
 
     print("")
+
+    print(ht.djb2("line_1"))
+    print(ht.fnv1("line_1"))
+    print(ht.hash_index("line_1"))
+
+    print(ht.djb2("line_9"))
+    print(ht.fnv1("line_9"))
+    print(ht.hash_index("line_9"))
+
+    print(ht.djb2("line_10"))
+    print(ht.fnv1("line_10"))
+    print(ht.hash_index("line_10"))
