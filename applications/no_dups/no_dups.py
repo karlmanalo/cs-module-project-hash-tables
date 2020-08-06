@@ -1,6 +1,12 @@
-def no_dups(s):
-    # Your code here
+from collections import OrderedDict
 
+def no_dups(s):
+    # return " ".join(set(s.split()))
+    # return " ".join(list(set(s.split())))
+    cache = {}
+    for word in s.split():
+        cache[word] = None
+    return " ".join(cache.keys())
 
 
 if __name__ == "__main__":

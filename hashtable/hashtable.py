@@ -1,16 +1,13 @@
 class HashTableEntry:
-    """
-    Linked List hash table key/value pair
-    """
     def __init__(self, key, value):
         self.key = key
         self.value = value
         self.next = None
 
+    def __repr__(self):
+        return f"key: {self.key}, value: {self.value}"
 
-# Hash table can't have fewer than this many slots
 MIN_CAPACITY = 8
-
 
 class HashTable:
     """
@@ -20,9 +17,16 @@ class HashTable:
     """
 
     def __init__(self, capacity):
-        self.capacity = capacity
-        self.table = [None] * capacity
-        self.counter = 0
+
+        self.min_capacity = MIN_CAPACITY
+
+        if capacity > self.min_capacity:
+            self.capacity = capacity
+        else:
+            self.capacity = self.min_capacity
+
+        self.table = [None] * self.capacity
+        self.count = 0
 
     def get_num_slots(self):
         """
@@ -34,38 +38,20 @@ class HashTable:
         """
         return self.capacity
 
-
     def get_load_factor(self):
         """
         Return the load factor for this hash table.
-        (number of keys / capacity)
+        Implement this.
         """
-        return self.counter / self.capacity
-
+        return self.count / self.capacity
 
     def fnv1(self, key):
         """
         FNV-1 Hash, 64-bit
-        https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
         Implement this, and/or DJB2.
         """
 
-        # total = 0
-        # for b in key.encode():
-        #     total += b
-        #     total &= 0xffffffffffffffff #64 bit
-
-        # return total
-
-        hash = 0xcbf29ce484222325 # decimal: 14695981039346656037
-        fnv_64_prime = 0x00000100000001B3 # decimal: 1099511628211
-        uint64_max = 2 ** 64
-
-        for x in key:
-            hash = hash ^ ord(x)
-            hash = (hash * fnv_64_prime) % uint64_max
-
-        return hash
+        # Your code here
 
     def djb2(self, key):
         """
@@ -73,39 +59,19 @@ class HashTable:
         Implement this, and/or FNV-1.
         """
 
-        # total = 0
-        # for b in key.encode():
-        #     total += b
-        #     total &= 0xffffffff  #32 bit
-
-        # return total
-
-        # hash = 5381
-        # for x in key:
-        #     hash = (( hash << 5) + hash) + ord(x)
-        # return hash & 0xffffffff
-
-        # hash = 5381
-        # for x in key:
-        #     hash = (hash * 33) + ord(x)
-        # return hash
-
         str_key = str(key).encode()
-        # Start from an arbitrary large prime
-        hash_value = 5381
-        # Bit-shift and sum value for each character
-        for b in str_key:
-            hash_value = ((hash_value << 5) + hash_value) + b
-            hash_value &= 0xffffffff  # DJB2 is a 32-bit hash, only keep 32 bits
-        return hash_value
 
+        hash_value = 5381
+
+        for i in key.encode():
+            hash_value = (hash_value * 33) + i
+        return hash_value
 
     def hash_index(self, key):
         """
         Take an arbitrary key and return a valid integer index
         between within the storage capacity of the hash table.
         """
-        # return self.fnv1(key) % self.capacity
         return self.djb2(key) % self.capacity
 
     def put(self, key, value):
@@ -114,8 +80,42 @@ class HashTable:
         Hash collisions should be handled with Linked List Chaining.
         Implement this.
         """
+
+        # Find hashed index of key and store it.
         index = self.hash_index(key)
-        self.table[index] = HashTableEntry(key, value)
+
+        """
+        If nothing exists at that index, create a new HT entry and 
+        increment the counter. Otherwise, we need to traverse the LL at that index and search 
+        each subsequent node for the given key until we reach the end
+        of the list (when the next node is None).
+        """
+
+        if self.table[index] == None:
+            self.table[index] = HashTableEntry(key, value)
+            self.count += 1
+        else:
+            current = self.table[index]
+            while current.next != None and current.key != key:
+                current = current.next
+            """
+            When we reach the end of the LL, compare our current key to the
+            key we are trying to insert into the LL. If they match, 
+            overwrite the value at that key. Otherwise, create a new HT
+            entry, setting this entry as the new head of the LL and
+            increment the counter.
+            """
+            if current.key == key:
+                current.value = value
+            else:
+                new_entry = HashTableEntry(key, value)
+                new_entry.next = self.table[index]
+                self.table[index] = new_entry
+                self.count += 1
+
+        # Auto re-sizing after putting
+        if self.get_load_factor() >= 0.7:
+            self.resize(self.capacity * 2)
 
     def delete(self, key):
         """
@@ -123,13 +123,40 @@ class HashTable:
         Print a warning if the key is not found.
         Implement this.
         """
+
+        # Find hashed index of key and store it.
         index = self.hash_index(key)
 
-        if self.table[index] == None:
-            print("Error: Key not found")
-
+        # Check the head of the LL at that index for the given key.
+        if self.table[index].key == key:
+            
+            if self.table[index].next == None:
+                self.table[index] = None
+                self.count -= 1
+                return key
+            else:
+                new_head = self.table[index].next
+                self.table[index].next = None
+                self.table[index] = new_head
+                self.count -= 1
         else:
-            self.table[index] = None
+            if self.table[index] == None:
+                return None
+            else:
+                current = self.table[index]
+                previous = None
+                while current.next is not None and current.key != key:
+                    previous = current
+                    current = current.next
+                if current.key == key:
+                    previous.next = current.next
+                    self.count -= 1
+                    return current.value
+                else:
+                    return None
+                    
+        if self.get_load_factor() <= 0.2:
+            self.resize(self.capacity // 2)
 
     def get(self, key):
         """
@@ -137,14 +164,22 @@ class HashTable:
         Returns None if the key is not found.
         Implement this.
         """
+
+        # Find hashed index of key and store it.
         index = self.hash_index(key)
-        key_value = self.table[index]
 
-        if key_value is not None:
-            return key_value.value
-
-        return None
-
+        if self.table[index] is not None and self.table[index].key == key:
+            return self.table[index].value
+        elif self.table[index]is None:
+            return None
+        else:
+            current = self.table[index]
+            while current.next != None and current.key != key:
+                current = self.table[index].next
+            if current == None:
+                return None
+            else:
+                return current.value
 
     def resize(self, new_capacity):
         """
@@ -152,10 +187,13 @@ class HashTable:
         rehashes all key/value pairs.
         Implement this.
         """
-        # Your code here
-        pass
-
-
+        old_table = self.table[:]
+        self.capacity = new_capacity
+        self.table = [None] * new_capacity
+        for i in range(len(old_table)):
+            if old_table[i] is not None:
+                current = old_table[i]
+                self.put(current.key, current.value)
 
 if __name__ == "__main__":
     ht = HashTable(8)
@@ -191,15 +229,3 @@ if __name__ == "__main__":
         print(ht.get(f"line_{i}"))
 
     print("")
-
-    print(ht.djb2("line_1"))
-    print(ht.fnv1("line_1"))
-    print(ht.hash_index("line_1"))
-
-    print(ht.djb2("line_9"))
-    print(ht.fnv1("line_9"))
-    print(ht.hash_index("line_9"))
-
-    print(ht.djb2("line_10"))
-    print(ht.fnv1("line_10"))
-    print(ht.hash_index("line_10"))
